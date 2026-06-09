@@ -108,7 +108,6 @@ fun ViewerScreen(
                             viewModel.sendChatMessage(text)
                         },
                         onExplain = {
-                            viewModel.clearSelectedText()
                             viewModel.explainSelectedText()
                         },
                         selectedText = state.selectedText!!,

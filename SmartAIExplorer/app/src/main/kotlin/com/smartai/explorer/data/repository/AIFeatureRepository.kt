@@ -50,7 +50,12 @@ class AIFeatureRepository @Inject constructor(
         val r = api.getInsights(documentId)
         return DocumentInsights(
             keyPoints   = r.keyPoints,
-            entities    = r.entities.map { NamedEntity(it.name, EntityType.valueOf(it.type)) },
+            entities    = r.entities.map {
+                NamedEntity(
+                    it.name,
+                    runCatching { EntityType.valueOf(it.type.uppercase()) }.getOrDefault(EntityType.OTHER),
+                )
+            },
             actionItems = r.actionItems,
             topics      = r.topics,
         )

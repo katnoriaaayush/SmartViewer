@@ -65,7 +65,8 @@ class ViewerViewModel @Inject constructor(
     }
 
     fun setActiveFeature(feature: AiFeature) {
-        _uiState.update { it.copy(activeFeature = feature) }
+        // Dismiss the explain overlay when the user navigates to a tab
+        _uiState.update { it.copy(activeFeature = feature, explainState = UiState.Idle) }
     }
 
     fun onTextSelected(text: String) {
@@ -74,6 +75,10 @@ class ViewerViewModel @Inject constructor(
 
     fun clearSelectedText() {
         _uiState.update { it.copy(selectedText = null) }
+    }
+
+    fun clearExplainState() {
+        _uiState.update { it.copy(explainState = UiState.Idle) }
     }
 
     fun zoomIn() {
@@ -106,7 +111,11 @@ class ViewerViewModel @Inject constructor(
                     }
                     _uiState.update { it.copy(streamingText = "") }
                 }
-                .catch { e -> _uiState.update { it.copy(streamingText = "Error: ${e.message}") } }
+                // onCompletion already cleared streamingText; persist the error as
+                // a chat bubble so the input is re-enabled and history is preserved.
+                .catch { e ->
+                    chatRepo.saveMessage(sid, MessageRole.model, "⚠️ ${e.message ?: "Connection error"}")
+                }
                 .collect()
         }
     }
@@ -165,8 +174,14 @@ class ViewerViewModel @Inject constructor(
 
     fun explainSelectedText(mode: ExplainMode = ExplainMode.EXPLAIN) {
         val docId = documentId ?: return
-        val text  = _uiState.value.selectedText ?: return
-        _uiState.update { it.copy(explainState = UiState.Loading) }
+        // Read and clear the selected text atomically — avoids the race where
+        // the caller clears the selection before we can read it.
+        var captured: String? = null
+        _uiState.update { s ->
+            captured = s.selectedText
+            s.copy(selectedText = null, explainState = UiState.Loading)
+        }
+        val text = captured ?: return
         viewModelScope.launch {
             runCatching { aiFeatureRepo.explain(docId, text, mode) }
                 .onSuccess { r -> _uiState.update { it.copy(explainState = UiState.Success(r)) } }

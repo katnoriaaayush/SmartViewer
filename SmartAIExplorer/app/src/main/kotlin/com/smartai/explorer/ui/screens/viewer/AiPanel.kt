@@ -1,13 +1,20 @@
 package com.smartai.explorer.ui.screens.viewer
 
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.smartai.explorer.domain.model.AiFeature
+import com.smartai.explorer.domain.model.ExplainResult
+import com.smartai.explorer.domain.model.UiState
 import com.smartai.explorer.ui.screens.viewer.tabs.*
 import com.smartai.explorer.ui.theme.*
 
@@ -17,49 +24,153 @@ fun AiPanel(
     viewModel: ViewerViewModel,
     modifier:  Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.padding(start = 0.dp),
+    Box(modifier = modifier) {
+        // ── Permanent feature tabs ─────────────────────────────────────────────
+        Column(modifier = Modifier.fillMaxSize()) {
+            FeatureTabRow(
+                activeFeature = state.activeFeature,
+                onSelect      = viewModel::setActiveFeature,
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+            AnimatedContent(
+                targetState = state.activeFeature,
+                modifier    = Modifier.fillMaxSize(),
+                label       = "ai_panel_content",
+            ) { feature ->
+                when (feature) {
+                    AiFeature.CHAT       -> ChatTab(
+                        messages      = state.chatMessages,
+                        streamingText = state.streamingText,
+                        onSend        = viewModel::sendChatMessage,
+                    )
+                    AiFeature.SUMMARY    -> SummaryTab(
+                        state    = state.summaryState,
+                        onLoad   = viewModel::loadSummary,
+                    )
+                    AiFeature.FLASHCARDS -> FlashcardsTab(
+                        state  = state.flashcardsState,
+                        onLoad = viewModel::loadFlashcards,
+                    )
+                    AiFeature.INSIGHTS   -> InsightsTab(
+                        state  = state.insightsState,
+                        onLoad = viewModel::loadInsights,
+                    )
+                    AiFeature.INDEX      -> IndexTab(
+                        state  = state.indexState,
+                        onLoad = viewModel::loadIndex,
+                    )
+                }
+            }
+        }
+
+        // ── Explain result overlay — slides up from the bottom ────────────────
+        AnimatedVisibility(
+            visible  = state.explainState !is UiState.Idle,
+            enter    = slideInVertically { it } + fadeIn(),
+            exit     = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth(),
+        ) {
+            ExplainSheet(
+                state     = state.explainState,
+                onDismiss = viewModel::clearExplainState,
+            )
+        }
+    }
+}
+
+// ── Explain result sheet ───────────────────────────────────────────────────────
+
+@Composable
+private fun ExplainSheet(
+    state:    UiState<ExplainResult>,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier        = modifier.padding(8.dp),
+        shape           = RoundedCornerShape(20.dp),
+        color           = MaterialTheme.colorScheme.surface,
+        tonalElevation  = 8.dp,
+        shadowElevation = 16.dp,
     ) {
-        // Feature tab row
-        FeatureTabRow(
-            activeFeature = state.activeFeature,
-            onSelect      = viewModel::setActiveFeature,
-        )
+        Column(
+            modifier             = Modifier.padding(16.dp),
+            verticalArrangement  = Arrangement.spacedBy(12.dp),
+        ) {
+            // Header row
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text     = "Explanation",
+                    style    = MaterialTheme.typography.titleMedium,
+                    color    = InsightsGreen,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Dismiss explanation")
+                }
+            }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+            HorizontalDivider()
 
-        // Animated content swap
-        AnimatedContent(
-            targetState = state.activeFeature,
-            modifier    = Modifier.fillMaxSize(),
-            label       = "ai_panel_content",
-        ) { feature ->
-            when (feature) {
-                AiFeature.CHAT       -> ChatTab(
-                    messages      = state.chatMessages,
-                    streamingText = state.streamingText,
-                    onSend        = viewModel::sendChatMessage,
+            when (state) {
+                is UiState.Loading -> Row(
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier              = Modifier.padding(vertical = 8.dp),
+                ) {
+                    CircularProgressIndicator(
+                        modifier    = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color       = InsightsGreen,
+                    )
+                    Text("Analysing selected text…", style = MaterialTheme.typography.bodyMedium)
+                }
+
+                is UiState.Success -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Mode chip
+                    AssistChip(
+                        onClick = {},
+                        label   = {
+                            Text(
+                                state.data.mode.name.lowercase().replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        },
+                        colors  = AssistChipDefaults.assistChipColors(labelColor = InsightsGreen),
+                    )
+                    // Quoted source text
+                    if (state.data.selectedText.isNotBlank()) {
+                        Text(
+                            text     = "\"${state.data.selectedText.take(120)}${if (state.data.selectedText.length > 120) "…" else ""}\"",
+                            style    = MaterialTheme.typography.bodyMedium,
+                            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    // Explanation body (scrollable)
+                    Text(
+                        text     = state.data.explanation,
+                        style    = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier
+                            .heightIn(max = 280.dp)
+                            .verticalScroll(rememberScrollState()),
+                    )
+                }
+
+                is UiState.Error -> Text(
+                    text  = "Error: ${state.message}",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
-                AiFeature.SUMMARY    -> SummaryTab(
-                    state    = state.summaryState,
-                    onLoad   = viewModel::loadSummary,
-                )
-                AiFeature.FLASHCARDS -> FlashcardsTab(
-                    state  = state.flashcardsState,
-                    onLoad = viewModel::loadFlashcards,
-                )
-                AiFeature.INSIGHTS   -> InsightsTab(
-                    state  = state.insightsState,
-                    onLoad = viewModel::loadInsights,
-                )
-                AiFeature.INDEX      -> IndexTab(
-                    state  = state.indexState,
-                    onLoad = viewModel::loadIndex,
-                )
+
+                else -> {}
             }
         }
     }
 }
+
+// ── Feature tab row ───────────────────────────────────────────────────────────
 
 @Composable
 private fun FeatureTabRow(
@@ -82,22 +193,21 @@ private fun FeatureTabRow(
     )
 
     Row(
-        modifier            = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+        modifier              = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         tabs.forEach { (feature, label) ->
-            val accent  = accentFor[feature] ?: MaterialTheme.colorScheme.primary
-            val active  = feature == activeFeature
+            val accent = accentFor[feature] ?: MaterialTheme.colorScheme.primary
             FilterChip(
-                selected = active,
+                selected = feature == activeFeature,
                 onClick  = { onSelect(feature) },
                 label    = { Text(label, style = MaterialTheme.typography.labelLarge) },
                 modifier = Modifier.height(48.dp).weight(1f),
                 colors   = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor    = accent.copy(alpha = 0.2f),
-                    selectedLabelColor        = accent,
-                    containerColor            = MaterialTheme.colorScheme.surfaceVariant,
-                    labelColor                = MaterialTheme.colorScheme.onSurfaceVariant,
+                    selectedContainerColor = accent.copy(alpha = 0.2f),
+                    selectedLabelColor     = accent,
+                    containerColor         = MaterialTheme.colorScheme.surfaceVariant,
+                    labelColor             = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
                 shape    = RoundedCornerShape(50),
             )
