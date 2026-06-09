@@ -16,16 +16,17 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class ViewerUiState(
-    val uploadState:    UiState<SmartDocument>   = UiState.Idle,
-    val activeFeature:  AiFeature                = AiFeature.CHAT,
-    val selectedText:   String?                  = null,
-    val chatMessages:   List<ChatMessage>        = emptyList(),
-    val streamingText:  String                   = "",
-    val summaryState:   UiState<Summary>         = UiState.Idle,
-    val flashcardsState: UiState<List<Flashcard>> = UiState.Idle,
-    val insightsState:  UiState<DocumentInsights> = UiState.Idle,
-    val indexState:     UiState<DocumentIndex>   = UiState.Idle,
-    val explainState:   UiState<ExplainResult>   = UiState.Idle,
+    val uploadState:     UiState<SmartDocument>    = UiState.Idle,
+    val activeFeature:   AiFeature                 = AiFeature.CHAT,
+    val selectedText:    String?                   = null,
+    val chatMessages:    List<ChatMessage>         = emptyList(),
+    val streamingText:   String                    = "",
+    val summaryState:    UiState<Summary>          = UiState.Idle,
+    val flashcardsState: UiState<List<Flashcard>>  = UiState.Idle,
+    val insightsState:   UiState<DocumentInsights> = UiState.Idle,
+    val indexState:      UiState<DocumentIndex>    = UiState.Idle,
+    val explainState:    UiState<ExplainResult>    = UiState.Idle,
+    val zoomScale:       Float                     = 1.5f,
 )
 
 @HiltViewModel
@@ -73,6 +74,14 @@ class ViewerViewModel @Inject constructor(
 
     fun clearSelectedText() {
         _uiState.update { it.copy(selectedText = null) }
+    }
+
+    fun zoomIn() {
+        _uiState.update { it.copy(zoomScale = (it.zoomScale + 0.25f).coerceAtMost(4.0f)) }
+    }
+
+    fun zoomOut() {
+        _uiState.update { it.copy(zoomScale = (it.zoomScale - 0.25f).coerceAtLeast(0.5f)) }
     }
 
     // ─── Chat ───────────────────────────────────────────────────────────────

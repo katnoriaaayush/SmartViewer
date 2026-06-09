@@ -1,51 +1,138 @@
 package com.smartai.explorer.ui.screens.viewer
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import android.annotation.SuppressLint
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.util.Base64
+import android.util.Log
+import android.webkit.JavascriptInterface
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.webkit.WebViewAssetLoader
+
+private const val TAG = "PdfPanel"
 
 /**
- * PDF viewer panel.
+ * Renders a page range from a PDF file using PDF.js 6 inside a WebView.
  *
- * Phase 2: Shows a placeholder.
- * Phase 3: Replaced with WebView + PDF.js via WebViewAssetLoader.
- *          PDF bytes are read from [fileUri], base64-encoded, and injected
- *          via evaluateJavascript("window.loadPDF('...')") after onPageFinished.
- *          Text selection flows: selectionchange → AndroidBridge.onTextSelected(text)
- *          → [onTextSelected].
+ * Assets are served via WebViewAssetLoader at:
+ *   https://appassets.androidplatform.net/assets/pdfjs/viewer.html
+ *
+ * PDF bytes are read from [fileUri] on a background thread, base64-encoded
+ * (NO_WRAP, so no newlines), then injected via evaluateJavascript after
+ * onPageFinished. Text-selection events flow back through AndroidBridge.
  */
+@SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun PdfPanel(
     fileUri:        String,
     startPage:      Int,
     endPage:        Int,
+    zoomScale:      Float,
     onTextSelected: (String) -> Unit,
     modifier:       Modifier = Modifier,
 ) {
-    Box(
-        modifier         = modifier,
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            CircularProgressIndicator()
-            Text(
-                text  = "PDF viewer coming in Phase 3",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text  = "Pages $startPage–$endPage of ${fileUri.substringAfterLast('/')}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+    // rememberUpdatedState so the lambdas captured by the WebViewClient always
+    // see the latest values without needing to recreate the WebView.
+    val onTextSelectedState = rememberUpdatedState(onTextSelected)
+    val currentZoom         = rememberUpdatedState(zoomScale)
+
+    val webViewRef = remember { mutableStateOf<WebView?>(null) }
+    val pdfLoaded  = remember { mutableStateOf(false) }
+
+    // Forward zoom changes to viewer.html after the PDF is loaded
+    LaunchedEffect(zoomScale) {
+        if (pdfLoaded.value) {
+            webViewRef.value?.evaluateJavascript("window.setZoom($zoomScale)", null)
         }
     }
+
+    DisposableEffect(Unit) {
+        onDispose { webViewRef.value?.destroy() }
+    }
+
+    AndroidView(
+        modifier = modifier,
+        factory  = { context ->
+            val assetLoader = WebViewAssetLoader.Builder()
+                .setDomain("appassets.androidplatform.net")
+                .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
+                .build()
+
+            WebView(context).apply {
+                settings.apply {
+                    javaScriptEnabled  = true
+                    allowFileAccess    = false   // assets served via AssetLoader, not file://
+                    allowContentAccess = false
+                    domStorageEnabled  = true
+                }
+
+                addJavascriptInterface(
+                    object : Any() {
+                        @JavascriptInterface
+                        fun onTextSelected(text: String) {
+                            // JS interface calls arrive on a background thread
+                            Handler(Looper.getMainLooper()).post {
+                                onTextSelectedState.value(text)
+                            }
+                        }
+
+                        @JavascriptInterface
+                        fun log(msg: String) {
+                            Log.d(TAG, msg)
+                        }
+                    },
+                    "AndroidBridge",
+                )
+
+                webViewClient = object : WebViewClient() {
+                    override fun shouldInterceptRequest(
+                        view:    WebView,
+                        request: WebResourceRequest,
+                    ) = assetLoader.shouldInterceptRequest(request.url)
+
+                    override fun onPageFinished(view: WebView, url: String) {
+                        // Read PDF bytes off the main thread; base64 strings can be large
+                        Thread {
+                            try {
+                                val bytes = context.contentResolver
+                                    .openInputStream(Uri.parse(fileUri))
+                                    ?.use { it.readBytes() }
+                                    ?: run {
+                                        Log.e(TAG, "Cannot open PDF URI: $fileUri")
+                                        return@Thread
+                                    }
+
+                                // Base64 alphabet has no single-quote chars — safe to embed
+                                val b64  = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                                val zoom = currentZoom.value
+
+                                view.post {
+                                    view.evaluateJavascript(
+                                        "window.loadPDF('$b64',$startPage,$endPage)",
+                                        null,
+                                    )
+                                    // If the user already changed zoom before loading finished,
+                                    // setZoom updates the scale variable so renderRange picks it up.
+                                    if (zoom != 1.5f) {
+                                        view.evaluateJavascript("window.setZoom($zoom)", null)
+                                    }
+                                    pdfLoaded.value = true
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to inject PDF", e)
+                            }
+                        }.start()
+                    }
+                }
+
+                loadUrl("https://appassets.androidplatform.net/assets/pdfjs/viewer.html")
+            }.also { webViewRef.value = it }
+        },
+    )
 }

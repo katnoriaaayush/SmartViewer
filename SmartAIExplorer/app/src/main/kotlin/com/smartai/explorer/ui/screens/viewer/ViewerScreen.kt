@@ -1,6 +1,5 @@
 package com.smartai.explorer.ui.screens.viewer
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -60,17 +59,15 @@ fun ViewerScreen(
                 }
             },
             actions = {
-                // Zoom controls — wired to PdfPanel via shared state in Phase 3
-                var zoom by remember { mutableFloatStateOf(1f) }
-                IconButton(onClick = { zoom = (zoom - 0.25f).coerceAtLeast(0.5f) }, modifier = Modifier.size(64.dp)) {
+                IconButton(onClick = viewModel::zoomOut, modifier = Modifier.size(64.dp)) {
                     Icon(Icons.Default.ZoomOut, contentDescription = "Zoom out")
                 }
                 Text(
-                    text     = "${(zoom * 100).toInt()}%",
+                    text     = "${(state.zoomScale * 100).toInt()}%",
                     style    = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.padding(horizontal = 8.dp),
                 )
-                IconButton(onClick = { zoom = (zoom + 0.25f).coerceAtMost(3f) }, modifier = Modifier.size(64.dp)) {
+                IconButton(onClick = viewModel::zoomIn, modifier = Modifier.size(64.dp)) {
                     Icon(Icons.Default.ZoomIn, contentDescription = "Zoom in")
                 }
                 Spacer(Modifier.width(16.dp))
@@ -93,6 +90,7 @@ fun ViewerScreen(
                     fileUri        = fileUri,
                     startPage      = startPage,
                     endPage        = endPage,
+                    zoomScale      = state.zoomScale,
                     onTextSelected = viewModel::onTextSelected,
                     modifier       = Modifier.fillMaxSize(),
                 )
