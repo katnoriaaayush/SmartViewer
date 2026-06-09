@@ -10,7 +10,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -26,10 +25,9 @@ fun ViewerScreen(
     onBack:    () -> Unit,
     viewModel: ViewerViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
-    val state   by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(fileUri) { viewModel.uploadDocument(context, fileUri) }
+    LaunchedEffect(fileUri) { viewModel.uploadDocument(fileUri) }
 
     Column(
         modifier = Modifier
@@ -150,7 +148,7 @@ fun ViewerScreen(
                                         color = MaterialTheme.colorScheme.onErrorContainer,
                                     )
                                     Button(
-                                        onClick  = { viewModel.uploadDocument(context, fileUri) },
+                                        onClick  = { viewModel.uploadDocument(fileUri) },
                                         modifier = Modifier.height(56.dp),
                                         colors   = ButtonDefaults.buttonColors(
                                             containerColor = MaterialTheme.colorScheme.error,
@@ -191,7 +189,7 @@ fun ViewerScreen(
             AiPanel(
                 state         = state,
                 viewModel     = viewModel,
-                onRetryUpload = { viewModel.uploadDocument(context, fileUri) },
+                onRetryUpload = { viewModel.uploadDocument(fileUri) },
                 modifier      = Modifier.weight(0.38f).fillMaxHeight(),
             )
         }

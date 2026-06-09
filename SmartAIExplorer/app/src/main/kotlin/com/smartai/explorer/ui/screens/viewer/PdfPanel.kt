@@ -1,7 +1,6 @@
 package com.smartai.explorer.ui.screens.viewer
 
 import android.annotation.SuppressLint
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
@@ -14,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
+import java.io.File
 
 private const val TAG = "PdfPanel"
 
@@ -106,16 +106,16 @@ fun PdfPanel(
                     ) = assetLoader.shouldInterceptRequest(request.url)
 
                     override fun onPageFinished(view: WebView, url: String) {
-                        // Read PDF bytes off the main thread; base64 strings can be large
+                        // Read PDF bytes off the main thread; base64 strings can be large.
+                        // fileUri is always a local file path — no ContentResolver needed.
                         Thread {
                             try {
-                                val bytes = context.contentResolver
-                                    .openInputStream(Uri.parse(fileUri))
-                                    ?.use { it.readBytes() }
-                                    ?: run {
-                                        Log.e(TAG, "Cannot open PDF URI: $fileUri")
-                                        return@Thread
-                                    }
+                                val file = File(fileUri)
+                                if (!file.exists()) {
+                                    Log.e(TAG, "PDF file not found: $fileUri")
+                                    return@Thread
+                                }
+                                val bytes = file.readBytes()
 
                                 // Base64 alphabet has no single-quote chars — safe to embed
                                 val b64  = Base64.encodeToString(bytes, Base64.NO_WRAP)

@@ -73,7 +73,13 @@ fun HomeScreen(
                     DocumentCard(
                         document = doc,
                         onClick  = {
-                            viewModel.onFilePicked(context, Uri.parse(doc.localFileUri), doc.fileName)
+                            // localFileUri is the local cache path after first open —
+                            // parse as a file URI so ensureLocalCopy returns it as-is.
+                            viewModel.onFilePicked(
+                                context,
+                                android.net.Uri.fromFile(java.io.File(doc.localFileUri)),
+                                doc.fileName,
+                            )
                         },
                     )
                 }
@@ -87,7 +93,7 @@ fun HomeScreen(
             totalPages = state.totalPages,
             onConfirm  = { start, end ->
                 viewModel.dismissDialog()
-                onOpenViewer(state.uri.toString(), state.fileName, start, end)
+                onOpenViewer(state.localPath, state.fileName, start, end)
             },
             onDismiss  = viewModel::dismissDialog,
         )

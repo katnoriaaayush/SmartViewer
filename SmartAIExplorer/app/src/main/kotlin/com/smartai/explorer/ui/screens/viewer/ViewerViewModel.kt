@@ -1,7 +1,5 @@
 package com.smartai.explorer.ui.screens.viewer
 
-import android.content.Context
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.smartai.explorer.data.repository.AIFeatureRepository
@@ -13,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class ViewerUiState(
@@ -46,14 +45,14 @@ class ViewerViewModel @Inject constructor(
     private var chatJob:    Job?    = null
 
     // Upload the file to the server and cache the result locally
-    fun uploadDocument(context: Context, fileUri: String) {
+    fun uploadDocument(fileUri: String) {
         if (_uiState.value.uploadState is UiState.Loading) return
         _uiState.update { it.copy(uploadState = UiState.Loading) }
 
         viewModelScope.launch {
             runCatching {
-                val uri  = Uri.parse(fileUri)
-                val part = uri.toMultipartPart(context) ?: error("Cannot read file")
+                // fileUri is always a local file path — no ContentResolver needed
+                val part = File(fileUri).toMultipartPart()
                 documentRepo.uploadAndCache(part, fileUri)
             }.onSuccess { doc ->
                 documentId = doc.documentId
