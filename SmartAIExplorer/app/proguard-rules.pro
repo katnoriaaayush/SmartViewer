@@ -1,0 +1,2 @@
+-keep class com.smartai.explorer.data.remote.dto.** { *; }
+-keep class com.smartai.explorer.domain.model.** { *; }
