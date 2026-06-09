@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Base theme — Compose overrides all UI; this just suppresses the default ActionBar -->
-    <style name="Theme.SmartAIExplorer" parent="android:Theme.Material.NoTitleBar" />
+    <style name="Theme.SmartAIExplorer" parent="android:Theme.Material.Light.NoActionBar" />
 </resources>
