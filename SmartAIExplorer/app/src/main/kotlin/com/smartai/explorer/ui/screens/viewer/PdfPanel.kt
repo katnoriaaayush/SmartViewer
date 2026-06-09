@@ -34,6 +34,7 @@ fun PdfPanel(
     startPage:      Int,
     endPage:        Int,
     zoomScale:      Float,
+    scrollTarget:   Pair<Int, Long>?,
     onTextSelected: (String) -> Unit,
     modifier:       Modifier = Modifier,
 ) {
@@ -49,6 +50,14 @@ fun PdfPanel(
     LaunchedEffect(zoomScale) {
         if (pdfLoaded.value) {
             webViewRef.value?.evaluateJavascript("window.setZoom($zoomScale)", null)
+        }
+    }
+
+    // Forward scroll-to-page requests; nonce in the Pair ensures the same page
+    // number can be re-requested after the user has scrolled away manually.
+    LaunchedEffect(scrollTarget) {
+        if (pdfLoaded.value && scrollTarget != null) {
+            webViewRef.value?.evaluateJavascript("window.scrollToPage(${scrollTarget.first})", null)
         }
     }
 

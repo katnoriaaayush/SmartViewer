@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.smartai.explorer.domain.model.UiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,7 +29,6 @@ fun ViewerScreen(
     val context = LocalContext.current
     val state   by viewModel.uiState.collectAsState()
 
-    // Kick off upload on first composition
     LaunchedEffect(fileUri) { viewModel.uploadDocument(context, fileUri) }
 
     Column(
@@ -91,27 +91,96 @@ fun ViewerScreen(
                     startPage      = startPage,
                     endPage        = endPage,
                     zoomScale      = state.zoomScale,
+                    scrollTarget   = state.scrollTarget,
                     onTextSelected = viewModel::onTextSelected,
                     modifier       = Modifier.fillMaxSize(),
                 )
 
+                // Upload loading overlay — shown while document is being sent to server
+                if (state.uploadState is UiState.Loading) {
+                    Surface(
+                        modifier       = Modifier.fillMaxSize(),
+                        color          = MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text  = "Uploading to AI server…",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Upload error overlay
+                if (state.uploadState is UiState.Error) {
+                    val errorMsg = (state.uploadState as UiState.Error).message
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color    = MaterialTheme.colorScheme.scrim.copy(alpha = 0.65f),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Card(
+                                modifier = Modifier.padding(32.dp),
+                                colors   = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                ),
+                            ) {
+                                Column(
+                                    modifier            = Modifier.padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                ) {
+                                    Text(
+                                        text  = "Upload failed",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                    Text(
+                                        text  = errorMsg,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                    Button(
+                                        onClick  = { viewModel.uploadDocument(context, fileUri) },
+                                        modifier = Modifier.height(56.dp),
+                                        colors   = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.error,
+                                        ),
+                                    ) {
+                                        Text("Retry Upload")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Floating text-selection toolbar
                 if (state.selectedText != null) {
                     TextSelectionToolbar(
-                        onSummarize = {
+                        onSummarize  = {
                             viewModel.clearSelectedText()
                             viewModel.loadSummary()
                         },
-                        onAsk = { text ->
+                        onAsk        = { text ->
                             viewModel.clearSelectedText()
                             viewModel.setActiveFeature(com.smartai.explorer.domain.model.AiFeature.CHAT)
                             viewModel.sendChatMessage(text)
                         },
-                        onExplain = {
-                            viewModel.explainSelectedText()
-                        },
+                        onExplain    = { viewModel.explainSelectedText() },
                         selectedText = state.selectedText!!,
-                        modifier     = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                        modifier     = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 24.dp),
                     )
                 }
             }
@@ -120,9 +189,10 @@ fun ViewerScreen(
 
             // AI panel — 38%
             AiPanel(
-                state     = state,
-                viewModel = viewModel,
-                modifier  = Modifier.weight(0.38f).fillMaxHeight(),
+                state         = state,
+                viewModel     = viewModel,
+                onRetryUpload = { viewModel.uploadDocument(context, fileUri) },
+                modifier      = Modifier.weight(0.38f).fillMaxHeight(),
             )
         }
     }

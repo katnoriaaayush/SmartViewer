@@ -27,6 +27,8 @@ data class ViewerUiState(
     val indexState:      UiState<DocumentIndex>    = UiState.Idle,
     val explainState:    UiState<ExplainResult>    = UiState.Idle,
     val zoomScale:       Float                     = 1.5f,
+    // Pair<pageNum, nonce> — the nonce ensures tapping the same page twice re-fires scroll
+    val scrollTarget:    Pair<Int, Long>?          = null,
 )
 
 @HiltViewModel
@@ -87,6 +89,10 @@ class ViewerViewModel @Inject constructor(
 
     fun zoomOut() {
         _uiState.update { it.copy(zoomScale = (it.zoomScale - 0.25f).coerceAtLeast(0.5f)) }
+    }
+
+    fun scrollToPage(pageNum: Int) {
+        _uiState.update { it.copy(scrollTarget = Pair(pageNum, System.currentTimeMillis())) }
     }
 
     // ─── Chat ───────────────────────────────────────────────────────────────
@@ -171,6 +177,17 @@ class ViewerViewModel @Inject constructor(
     }
 
     // ─── Explain (triggered by text selection) ───────────────────────────────
+
+    fun reExplainWithMode(mode: ExplainMode) {
+        val docId = documentId ?: return
+        val text  = (_uiState.value.explainState as? UiState.Success)?.data?.selectedText ?: return
+        _uiState.update { it.copy(explainState = UiState.Loading) }
+        viewModelScope.launch {
+            runCatching { aiFeatureRepo.explain(docId, text, mode) }
+                .onSuccess { r -> _uiState.update { it.copy(explainState = UiState.Success(r)) } }
+                .onFailure { e -> _uiState.update { it.copy(explainState = UiState.Error(e.message ?: "Failed")) } }
+        }
+    }
 
     fun explainSelectedText(mode: ExplainMode = ExplainMode.EXPLAIN) {
         val docId = documentId ?: return
