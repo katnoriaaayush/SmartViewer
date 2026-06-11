@@ -1,6 +1,18 @@
-node_modules/
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Runtime data
 uploads/
+logs/
 *.db
 *.db-shm
 *.db-wal
 .env
+
+# Legacy Node (pre-migration)
+node_modules/
