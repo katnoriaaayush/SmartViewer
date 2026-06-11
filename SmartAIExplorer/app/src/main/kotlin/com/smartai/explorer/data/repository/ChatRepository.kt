@@ -8,6 +8,7 @@ import com.smartai.explorer.data.remote.SmartAIApiService
 import com.smartai.explorer.data.remote.dto.ChatRequest
 import com.smartai.explorer.domain.model.ChatMessage
 import com.smartai.explorer.domain.model.MessageRole
+import com.smartai.explorer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -16,6 +17,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "ChatRepo"
 
 @Singleton
 class ChatRepository @Inject constructor(
@@ -27,11 +30,16 @@ class ChatRepository @Inject constructor(
 
     fun streamChat(documentId: String, message: String, sessionId: String): Flow<String> =
         flow {
+            AppLog.i(TAG, "streamChat → doc=$documentId session=$sessionId msgLen=${message.length}")
             val response = withContext(Dispatchers.IO) {
                 api.chat(documentId, ChatRequest(message, sessionId)).execute()
             }
-            if (!response.isSuccessful) throw Exception("HTTP ${response.code()}")
+            if (!response.isSuccessful) {
+                AppLog.e(TAG, "Chat request failed: HTTP ${response.code()}")
+                throw Exception("HTTP ${response.code()}")
+            }
             val body = response.body() ?: throw Exception("Empty response body")
+            AppLog.d(TAG, "Chat stream opened, parsing SSE…")
             SSEStreamParser.parse(body).collect { emit(it) }
         }.flowOn(Dispatchers.IO)
 

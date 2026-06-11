@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.smartai.explorer.data.repository.DocumentRepository
 import com.smartai.explorer.domain.model.SmartDocument
+import com.smartai.explorer.util.AppLog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+
+private const val TAG = "HomeVM"
 
 data class SelectedFileState(
     val localPath:  String,   // absolute path inside filesDir/pdfs — no content URI needed
@@ -51,10 +54,18 @@ class HomeViewModel @Inject constructor(
      * are not affected by permission expiry.
      */
     fun onFilePicked(context: Context, uri: Uri, fileName: String) {
+        AppLog.i(TAG, "File picked: $fileName ($uri)")
         viewModelScope.launch {
-            val localPath = withContext(Dispatchers.IO) { ensureLocalCopy(context, uri, fileName) }
-            val pages     = withContext(Dispatchers.IO) { getPageCount(localPath) }
-            _selectedFile.value = SelectedFileState(localPath, fileName, pages)
+            runCatching {
+                val localPath = withContext(Dispatchers.IO) { ensureLocalCopy(context, uri, fileName) }
+                val pages     = withContext(Dispatchers.IO) { getPageCount(localPath) }
+                AppLog.i(TAG, "Local copy ready: $localPath ($pages pages)")
+                SelectedFileState(localPath, fileName, pages)
+            }.onSuccess { state ->
+                _selectedFile.value = state
+            }.onFailure { e ->
+                AppLog.e(TAG, "Failed to prepare picked file", e)
+            }
         }
     }
 

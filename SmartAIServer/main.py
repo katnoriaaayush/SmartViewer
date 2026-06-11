@@ -18,12 +18,13 @@ logging_config.configure()
 
 from contextlib import asynccontextmanager  # noqa: E402
 
-from fastapi import FastAPI  # noqa: E402
+from fastapi import FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 from routes import aifeatures, chat, documents, sessions  # noqa: E402
 
 logger = logging.getLogger("smartai")
+access_logger = logging.getLogger("smartai.http")
 
 START_TIME = time.time()
 
@@ -46,6 +47,30 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log every request with its outcome and latency for debugging."""
+    started = time.monotonic()
+    client_host = request.client.host if request.client else "?"
+    try:
+        response = await call_next(request)
+    except Exception:
+        elapsed_ms = (time.monotonic() - started) * 1000
+        access_logger.exception(
+            "%s %s ← 500 (unhandled) %.0fms from %s",
+            request.method, request.url.path, elapsed_ms, client_host,
+        )
+        raise
+
+    elapsed_ms = (time.monotonic() - started) * 1000
+    level = logging.WARNING if response.status_code >= 400 else logging.INFO
+    access_logger.log(
+        level, "%s %s ← %d %.0fms from %s",
+        request.method, request.url.path, response.status_code, elapsed_ms, client_host,
+    )
+    return response
+
 
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(chat.router, prefix="/api/documents", tags=["chat"])

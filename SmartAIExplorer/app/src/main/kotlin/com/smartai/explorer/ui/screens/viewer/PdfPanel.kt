@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
-import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -13,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
+import com.smartai.explorer.util.AppLog
 import java.io.File
 
 private const val TAG = "PdfPanel"
@@ -93,7 +93,7 @@ fun PdfPanel(
 
                         @JavascriptInterface
                         fun log(msg: String) {
-                            Log.d(TAG, msg)
+                            AppLog.d(TAG, "[viewer.html] $msg")
                         }
                     },
                     "AndroidBridge",
@@ -112,10 +112,11 @@ fun PdfPanel(
                             try {
                                 val file = File(fileUri)
                                 if (!file.exists()) {
-                                    Log.e(TAG, "PDF file not found: $fileUri")
+                                    AppLog.e(TAG, "PDF file not found: $fileUri")
                                     return@Thread
                                 }
                                 val bytes = file.readBytes()
+                                AppLog.i(TAG, "Injecting PDF (${bytes.size} bytes, pages $startPage-$endPage)")
 
                                 // Base64 alphabet has no single-quote chars — safe to embed
                                 val b64  = Base64.encodeToString(bytes, Base64.NO_WRAP)
@@ -134,7 +135,7 @@ fun PdfPanel(
                                     pdfLoaded.value = true
                                 }
                             } catch (e: Exception) {
-                                Log.e(TAG, "Failed to inject PDF", e)
+                                AppLog.e(TAG, "Failed to inject PDF", e)
                             }
                         }.start()
                     }

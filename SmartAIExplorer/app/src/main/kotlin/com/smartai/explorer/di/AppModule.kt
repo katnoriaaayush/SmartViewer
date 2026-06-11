@@ -8,6 +8,7 @@ import androidx.room.Room
 import com.smartai.explorer.BuildConfig
 import com.smartai.explorer.data.local.SmartAIDatabase
 import com.smartai.explorer.data.remote.SmartAIApiService
+import com.smartai.explorer.util.AppLog
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -32,7 +33,13 @@ object AppModule {
         .readTimeout(120, TimeUnit.SECONDS)   // SSE streams can be long
         .writeTimeout(60,  TimeUnit.SECONDS)
         .connectTimeout(30, TimeUnit.SECONDS)
-        .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC })
+        .addInterceptor(
+            HttpLoggingInterceptor { msg -> AppLog.d("OkHttp", msg) }.apply {
+                // HEADERS (not BODY) in debug — BODY would buffer and break the SSE chat stream.
+                level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
+                        else HttpLoggingInterceptor.Level.NONE
+            },
+        )
         .build()
 
     @Provides @Singleton

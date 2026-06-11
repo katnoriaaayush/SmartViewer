@@ -6,6 +6,7 @@ import com.smartai.explorer.data.repository.AIFeatureRepository
 import com.smartai.explorer.data.repository.ChatRepository
 import com.smartai.explorer.data.repository.DocumentRepository
 import com.smartai.explorer.domain.model.*
+import com.smartai.explorer.util.AppLog
 import com.smartai.explorer.util.toMultipartPart
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -13,6 +14,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
+
+private const val TAG = "ViewerVM"
 
 data class ViewerUiState(
     val uploadState:     UiState<SmartDocument>    = UiState.Idle,
@@ -47,6 +50,7 @@ class ViewerViewModel @Inject constructor(
     // Upload the file to the server and cache the result locally
     fun uploadDocument(fileUri: String) {
         if (_uiState.value.uploadState is UiState.Loading) return
+        AppLog.i(TAG, "uploadDocument: $fileUri")
         _uiState.update { it.copy(uploadState = UiState.Loading) }
 
         viewModelScope.launch {
@@ -57,9 +61,11 @@ class ViewerViewModel @Inject constructor(
             }.onSuccess { doc ->
                 documentId = doc.documentId
                 sessionId  = doc.sessionId
+                AppLog.i(TAG, "Upload success: documentId=${doc.documentId}")
                 _uiState.update { it.copy(uploadState = UiState.Success(doc)) }
                 observeChatMessages(doc.sessionId)
             }.onFailure { e ->
+                AppLog.e(TAG, "Upload failed", e)
                 _uiState.update { it.copy(uploadState = UiState.Error(e.message ?: "Upload failed")) }
             }
         }
@@ -97,9 +103,10 @@ class ViewerViewModel @Inject constructor(
     // ─── Chat ───────────────────────────────────────────────────────────────
 
     fun sendChatMessage(message: String) {
-        val docId = documentId ?: return
-        val sid   = sessionId  ?: return
+        val docId = documentId ?: run { AppLog.w(TAG, "sendChatMessage ignored: no documentId yet"); return }
+        val sid   = sessionId  ?: run { AppLog.w(TAG, "sendChatMessage ignored: no sessionId yet"); return }
         chatJob?.cancel()
+        AppLog.i(TAG, "sendChatMessage (len=${message.length})")
         _uiState.update { it.copy(streamingText = "", activeFeature = AiFeature.CHAT) }
 
         chatJob = viewModelScope.launch {
@@ -111,6 +118,7 @@ class ViewerViewModel @Inject constructor(
                 }
                 .onCompletion { err ->
                     if (err == null) {
+                        AppLog.i(TAG, "Chat stream complete (${accumulated.length} chars)")
                         chatRepo.saveMessage(sid, MessageRole.user,  message)
                         chatRepo.saveMessage(sid, MessageRole.model, accumulated)
                     }
@@ -119,6 +127,7 @@ class ViewerViewModel @Inject constructor(
                 // onCompletion already cleared streamingText; persist the error as
                 // a chat bubble so the input is re-enabled and history is preserved.
                 .catch { e ->
+                    AppLog.e(TAG, "Chat stream error", e)
                     chatRepo.saveMessage(sid, MessageRole.model, "⚠️ ${e.message ?: "Connection error"}")
                 }
                 .collect()
@@ -135,7 +144,10 @@ class ViewerViewModel @Inject constructor(
                 aiFeatureRepo.getSummary(docId, mode,
                     com.smartai.explorer.data.remote.dto.SummarizeRequest(mode.name.lowercase(), customPrompt))
             }.onSuccess { s -> _uiState.update { it.copy(summaryState = UiState.Success(s)) } }
-             .onFailure { e -> _uiState.update { it.copy(summaryState = UiState.Error(e.message ?: "Failed")) } }
+             .onFailure { e ->
+                 AppLog.e(TAG, "loadSummary failed", e)
+                 _uiState.update { it.copy(summaryState = UiState.Error(e.message ?: "Failed")) }
+             }
         }
     }
 
@@ -147,7 +159,10 @@ class ViewerViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { aiFeatureRepo.getFlashcards(docId) }
                 .onSuccess { cards -> _uiState.update { it.copy(flashcardsState = UiState.Success(cards)) } }
-                .onFailure { e    -> _uiState.update { it.copy(flashcardsState = UiState.Error(e.message ?: "Failed")) } }
+                .onFailure { e ->
+                    AppLog.e(TAG, "loadFlashcards failed", e)
+                    _uiState.update { it.copy(flashcardsState = UiState.Error(e.message ?: "Failed")) }
+                }
         }
     }
 
@@ -159,7 +174,10 @@ class ViewerViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { aiFeatureRepo.getInsights(docId) }
                 .onSuccess { ins -> _uiState.update { it.copy(insightsState = UiState.Success(ins)) } }
-                .onFailure { e   -> _uiState.update { it.copy(insightsState = UiState.Error(e.message ?: "Failed")) } }
+                .onFailure { e ->
+                    AppLog.e(TAG, "loadInsights failed", e)
+                    _uiState.update { it.copy(insightsState = UiState.Error(e.message ?: "Failed")) }
+                }
         }
     }
 
@@ -171,7 +189,10 @@ class ViewerViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { aiFeatureRepo.getIndex(docId) }
                 .onSuccess { idx -> _uiState.update { it.copy(indexState = UiState.Success(idx)) } }
-                .onFailure { e   -> _uiState.update { it.copy(indexState = UiState.Error(e.message ?: "Failed")) } }
+                .onFailure { e ->
+                    AppLog.e(TAG, "loadIndex failed", e)
+                    _uiState.update { it.copy(indexState = UiState.Error(e.message ?: "Failed")) }
+                }
         }
     }
 
@@ -184,7 +205,10 @@ class ViewerViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { aiFeatureRepo.explain(docId, text, mode) }
                 .onSuccess { r -> _uiState.update { it.copy(explainState = UiState.Success(r)) } }
-                .onFailure { e -> _uiState.update { it.copy(explainState = UiState.Error(e.message ?: "Failed")) } }
+                .onFailure { e ->
+                    AppLog.e(TAG, "explain failed", e)
+                    _uiState.update { it.copy(explainState = UiState.Error(e.message ?: "Failed")) }
+                }
         }
     }
 
@@ -201,7 +225,10 @@ class ViewerViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { aiFeatureRepo.explain(docId, text, mode) }
                 .onSuccess { r -> _uiState.update { it.copy(explainState = UiState.Success(r)) } }
-                .onFailure { e -> _uiState.update { it.copy(explainState = UiState.Error(e.message ?: "Failed")) } }
+                .onFailure { e ->
+                    AppLog.e(TAG, "explain failed", e)
+                    _uiState.update { it.copy(explainState = UiState.Error(e.message ?: "Failed")) }
+                }
         }
     }
 
