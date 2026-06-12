@@ -1,15 +1,19 @@
 package com.smartai.explorer.ui.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.smartai.explorer.domain.model.SmartDocument
+import com.smartai.explorer.ui.theme.ErrorRed
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -19,31 +23,45 @@ fun DocumentCard(
     onClick:  () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier  = modifier.fillMaxWidth().height(160.dp).clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    OutlinedCard(
+        onClick   = onClick,
+        modifier  = modifier.fillMaxWidth(),
+        shape     = MaterialTheme.shapes.medium,
+        colors    = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border    = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.outlinedCardElevation(defaultElevation = 0.dp),
     ) {
-        Column(
-            modifier            = Modifier.fillMaxSize().padding(20.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
+        Row(
+            modifier          = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector        = Icons.Default.PictureAsPdf,
-                contentDescription = null,
-                modifier           = Modifier.size(40.dp),
-                tint               = MaterialTheme.colorScheme.primary,
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            // PDF icon tile
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(ErrorRed.copy(alpha = 0.08f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector        = Icons.Outlined.Description,
+                    contentDescription = null,
+                    modifier           = Modifier.size(26.dp),
+                    tint               = ErrorRed,
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
                     text     = document.fileName,
-                    style    = MaterialTheme.typography.labelLarge,
+                    style    = MaterialTheme.typography.titleSmall,
+                    color    = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text  = "${formatFileSize(document.fileSize)}  ·  ${formatDate(document.uploadedAt)}",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

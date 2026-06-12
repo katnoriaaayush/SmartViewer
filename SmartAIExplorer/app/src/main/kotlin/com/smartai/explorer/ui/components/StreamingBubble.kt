@@ -10,17 +10,16 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun StreamingBubble(text: String, modifier: Modifier = Modifier) {
     Surface(
-        shape          = RoundedCornerShape(topStart = 4.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 16.dp),
-        color          = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 2.dp,
-        modifier       = modifier.widthIn(max = 360.dp),
+        shape    = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 6.dp, bottomEnd = 18.dp),
+        color    = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier.widthIn(max = 360.dp),
     ) {
         // Cursor blink is visual-only — just append the block character
         Text(
             text     = "$text▋",
-            style    = MaterialTheme.typography.bodyLarge,
-            color    = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(12.dp),
+            style    = MaterialTheme.typography.bodyMedium,
+            color    = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
         )
     }
 }

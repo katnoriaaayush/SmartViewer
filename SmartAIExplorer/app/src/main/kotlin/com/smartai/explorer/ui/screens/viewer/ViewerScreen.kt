@@ -4,18 +4,20 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ZoomIn
-import androidx.compose.material.icons.filled.ZoomOut
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.smartai.explorer.domain.model.AiFeature
 import com.smartai.explorer.domain.model.UiState
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ViewerScreen(
     fileUri:   String,
@@ -34,46 +36,16 @@ fun ViewerScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        // ── Top bar ──────────────────────────────────────────────────────────
-        TopAppBar(
-            navigationIcon = {
-                IconButton(onClick = onBack, modifier = Modifier.size(64.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
-            },
-            title = {
-                Column {
-                    Text(
-                        text     = fileName,
-                        style    = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text  = "Pages $startPage – $endPage",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            },
-            actions = {
-                IconButton(onClick = viewModel::zoomOut, modifier = Modifier.size(64.dp)) {
-                    Icon(Icons.Default.ZoomOut, contentDescription = "Zoom out")
-                }
-                Text(
-                    text     = "${(state.zoomScale * 100).toInt()}%",
-                    style    = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                )
-                IconButton(onClick = viewModel::zoomIn, modifier = Modifier.size(64.dp)) {
-                    Icon(Icons.Default.ZoomIn, contentDescription = "Zoom in")
-                }
-                Spacer(Modifier.width(16.dp))
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ),
+        ViewerTopBar(
+            fileName  = fileName,
+            startPage = startPage,
+            endPage   = endPage,
+            zoomPct   = (state.zoomScale * 100).toInt(),
+            onBack    = onBack,
+            onZoomIn  = viewModel::zoomIn,
+            onZoomOut = viewModel::zoomOut,
         )
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
 
         // ── Two-panel body ────────────────────────────────────────────────────
         Row(modifier = Modifier.fillMaxSize()) {
@@ -96,21 +68,29 @@ fun ViewerScreen(
 
                 // Upload loading overlay — shown while document is being sent to server
                 if (state.uploadState is UiState.Loading) {
-                    Surface(
-                        modifier       = Modifier.fillMaxSize(),
-                        color          = MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f),
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f)),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                        Surface(
+                            shape           = MaterialTheme.shapes.medium,
+                            color           = MaterialTheme.colorScheme.surface,
+                            shadowElevation = 8.dp,
+                        ) {
+                            Row(
+                                modifier              = Modifier.padding(horizontal = 24.dp, vertical = 18.dp),
+                                verticalAlignment     = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
                             ) {
                                 CircularProgressIndicator(
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier    = Modifier.size(22.dp),
+                                    strokeWidth = 2.5.dp,
                                 )
                                 Text(
-                                    text  = "Uploading to AI server…",
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    text  = "Preparing document…",
+                                    style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
@@ -121,41 +101,41 @@ fun ViewerScreen(
                 // Upload error overlay
                 if (state.uploadState is UiState.Error) {
                     val errorMsg = (state.uploadState as UiState.Error).message
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color    = MaterialTheme.colorScheme.scrim.copy(alpha = 0.65f),
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f)),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Card(
-                                modifier = Modifier.padding(32.dp),
-                                colors   = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                                ),
+                        Surface(
+                            shape           = MaterialTheme.shapes.medium,
+                            color           = MaterialTheme.colorScheme.surface,
+                            shadowElevation = 8.dp,
+                            modifier        = Modifier.widthIn(max = 420.dp),
+                        ) {
+                            Column(
+                                modifier            = Modifier.padding(28.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                Column(
-                                    modifier            = Modifier.padding(24.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                Text(
+                                    text  = "Couldn't upload document",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text      = errorMsg,
+                                    style     = MaterialTheme.typography.bodyMedium,
+                                    color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Button(
+                                    onClick  = { viewModel.uploadDocument(fileUri) },
+                                    modifier = Modifier.height(48.dp),
+                                    shape    = MaterialTheme.shapes.small,
                                 ) {
-                                    Text(
-                                        text  = "Upload failed",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                    )
-                                    Text(
-                                        text  = errorMsg,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                    )
-                                    Button(
-                                        onClick  = { viewModel.uploadDocument(fileUri) },
-                                        modifier = Modifier.height(56.dp),
-                                        colors   = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.error,
-                                        ),
-                                    ) {
-                                        Text("Retry Upload")
-                                    }
+                                    Text("Try again")
                                 }
                             }
                         }
@@ -171,7 +151,7 @@ fun ViewerScreen(
                         },
                         onAsk        = { text ->
                             viewModel.clearSelectedText()
-                            viewModel.setActiveFeature(com.smartai.explorer.domain.model.AiFeature.CHAT)
+                            viewModel.setActiveFeature(AiFeature.CHAT)
                             viewModel.sendChatMessage(text)
                         },
                         onExplain    = { viewModel.explainSelectedText() },
@@ -193,5 +173,81 @@ fun ViewerScreen(
                 modifier      = Modifier.weight(0.38f).fillMaxHeight(),
             )
         }
+    }
+}
+
+@Composable
+private fun ViewerTopBar(
+    fileName:  String,
+    startPage: Int,
+    endPage:   Int,
+    zoomPct:   Int,
+    onBack:    () -> Unit,
+    onZoomIn:  () -> Unit,
+    onZoomOut: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        Spacer(Modifier.width(4.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text     = fileName,
+                style    = MaterialTheme.typography.titleMedium,
+                color    = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text  = "Pages $startPage–$endPage",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // Zoom pill — grouped −/value/+ control
+        Row(
+            modifier = Modifier
+                .clip(MaterialTheme.shapes.extraLarge)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onZoomOut, modifier = Modifier.size(44.dp)) {
+                Icon(
+                    Icons.Default.Remove,
+                    contentDescription = "Zoom out",
+                    tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Text(
+                text      = "$zoomPct%",
+                style     = MaterialTheme.typography.labelMedium,
+                color     = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                modifier  = Modifier.widthIn(min = 48.dp),
+            )
+            IconButton(onClick = onZoomIn, modifier = Modifier.size(44.dp)) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Zoom in",
+                    tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+        Spacer(Modifier.width(8.dp))
     }
 }

@@ -1,16 +1,27 @@
 package com.smartai.explorer.ui.screens.viewer
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ListAlt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.Notes
+import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.smartai.explorer.domain.model.AiFeature
 import com.smartai.explorer.domain.model.ExplainMode
@@ -26,7 +37,7 @@ fun AiPanel(
     onRetryUpload:  () -> Unit,
     modifier:       Modifier = Modifier,
 ) {
-    Box(modifier = modifier) {
+    Box(modifier = modifier.background(MaterialTheme.colorScheme.surface)) {
         // ── Permanent feature tabs ─────────────────────────────────────────────
         Column(modifier = Modifier.fillMaxSize()) {
             FeatureTabRow(
@@ -102,12 +113,17 @@ private fun UploadingPanel() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            CircularProgressIndicator(color = ChatBlue)
+            CircularProgressIndicator(strokeWidth = 3.dp)
             Text(
-                text  = "Uploading document to AI server…",
-                style = MaterialTheme.typography.bodyLarge,
+                text  = "Getting AI ready…",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text  = "Uploading the document for analysis",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -119,20 +135,28 @@ private fun UploadErrorPanel(message: String, onRetry: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Icon(
+                imageVector        = Icons.Outlined.CloudOff,
+                contentDescription = null,
+                tint               = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier           = Modifier.size(40.dp),
+            )
             Text(
-                text  = "Upload failed",
+                text  = "AI features unavailable",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.error,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text  = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text      = message,
+                style     = MaterialTheme.typography.bodyMedium,
+                color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
-            Button(onClick = onRetry, modifier = Modifier.height(56.dp)) {
-                Text("Retry Upload")
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = onRetry, modifier = Modifier.height(48.dp), shape = MaterialTheme.shapes.small) {
+                Text("Try again")
             }
         }
     }
@@ -148,29 +172,40 @@ private fun ExplainSheet(
     modifier:     Modifier = Modifier,
 ) {
     Surface(
-        modifier        = modifier.padding(8.dp),
-        shape           = RoundedCornerShape(20.dp),
+        modifier        = modifier.padding(12.dp),
+        shape           = MaterialTheme.shapes.large,
         color           = MaterialTheme.colorScheme.surface,
-        tonalElevation  = 8.dp,
-        shadowElevation = 16.dp,
+        border          = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shadowElevation = 12.dp,
     ) {
         Column(
-            modifier            = Modifier.padding(16.dp),
+            modifier            = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // Header
             Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector        = Icons.Outlined.Lightbulb,
+                    contentDescription = null,
+                    tint               = InsightsGreen,
+                    modifier           = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(8.dp))
                 Text(
                     text     = "Explanation",
                     style    = MaterialTheme.typography.titleMedium,
-                    color    = InsightsGreen,
+                    color    = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Dismiss explanation")
+                IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Dismiss explanation",
+                        tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
             }
-            HorizontalDivider()
 
             when (state) {
                 is UiState.Loading -> Row(
@@ -183,21 +218,25 @@ private fun ExplainSheet(
                         strokeWidth = 2.dp,
                         color       = InsightsGreen,
                     )
-                    Text("Analysing selected text…", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Analysing selected text…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
 
                 is UiState.Success -> {
                     // Quoted source text
                     if (state.data.selectedText.isNotBlank()) {
                         Surface(
-                            color  = MaterialTheme.colorScheme.surfaceVariant,
-                            shape  = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = MaterialTheme.shapes.small,
                         ) {
                             Text(
-                                text     = "\"${state.data.selectedText.take(120)}${if (state.data.selectedText.length > 120) "…" else ""}\"",
+                                text     = "“${state.data.selectedText.take(120)}${if (state.data.selectedText.length > 120) "…" else ""}”",
                                 style    = MaterialTheme.typography.bodyMedium,
                                 color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                             )
                         }
                     }
@@ -205,12 +244,13 @@ private fun ExplainSheet(
                     Text(
                         text     = state.data.explanation,
                         style    = MaterialTheme.typography.bodyLarge,
+                        color    = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
                             .heightIn(max = 240.dp)
                             .verticalScroll(rememberScrollState()),
                     )
                     // Mode picker — re-run with a different mode
-                    HorizontalDivider()
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ExplainMode.entries.forEach { mode ->
                             val active = mode == state.data.mode
@@ -220,21 +260,26 @@ private fun ExplainSheet(
                                 label    = {
                                     Text(
                                         mode.name.lowercase().replaceFirstChar { it.uppercase() },
-                                        style = MaterialTheme.typography.labelLarge,
+                                        style = MaterialTheme.typography.labelMedium,
                                     )
                                 },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = InsightsGreen.copy(alpha = 0.2f),
+                                    selectedContainerColor = InsightsGreenSoft,
                                     selectedLabelColor     = InsightsGreen,
                                 ),
-                                shape = RoundedCornerShape(50),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled     = true,
+                                    selected    = active,
+                                    borderColor = MaterialTheme.colorScheme.outline,
+                                ),
+                                shape = MaterialTheme.shapes.extraLarge,
                             )
                         }
                     }
                 }
 
                 is UiState.Error -> Text(
-                    text  = "Error: ${state.message}",
+                    text  = state.message,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -247,45 +292,55 @@ private fun ExplainSheet(
 
 // ── Feature tab row ───────────────────────────────────────────────────────────
 
+private data class FeatureTab(
+    val feature: AiFeature,
+    val label:   String,
+    val icon:    ImageVector,
+    val accent:  Color,
+    val soft:    Color,
+)
+
 @Composable
 private fun FeatureTabRow(
     activeFeature: AiFeature,
     onSelect:      (AiFeature) -> Unit,
 ) {
     val tabs = listOf(
-        AiFeature.CHAT       to "Chat",
-        AiFeature.SUMMARY    to "Summary",
-        AiFeature.FLASHCARDS to "Flashcards",
-        AiFeature.INSIGHTS   to "Insights",
-        AiFeature.INDEX      to "Index",
-    )
-    val accentFor = mapOf(
-        AiFeature.CHAT       to ChatBlue,
-        AiFeature.SUMMARY    to SummaryPurple,
-        AiFeature.FLASHCARDS to FlashcardAmber,
-        AiFeature.INSIGHTS   to InsightsGreen,
-        AiFeature.INDEX      to IndexSlate,
+        FeatureTab(AiFeature.CHAT,       "Chat",     Icons.Outlined.ChatBubbleOutline,   ChatBlue,       ChatBlueSoft),
+        FeatureTab(AiFeature.SUMMARY,    "Summary",  Icons.Outlined.Notes,               SummaryPurple,  SummaryPurpleSoft),
+        FeatureTab(AiFeature.FLASHCARDS, "Cards",    Icons.Outlined.Style,               FlashcardAmber, FlashcardAmberSoft),
+        FeatureTab(AiFeature.INSIGHTS,   "Insights", Icons.Outlined.Lightbulb,           InsightsGreen,  InsightsGreenSoft),
+        FeatureTab(AiFeature.INDEX,      "Index",    Icons.AutoMirrored.Outlined.ListAlt, IndexSlate,    IndexSlateSoft),
     )
 
     Row(
-        modifier              = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+        modifier              = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        tabs.forEach { (feature, label) ->
-            val accent = accentFor[feature] ?: MaterialTheme.colorScheme.primary
-            FilterChip(
-                selected = feature == activeFeature,
-                onClick  = { onSelect(feature) },
-                label    = { Text(label, style = MaterialTheme.typography.labelLarge) },
-                modifier = Modifier.height(48.dp).weight(1f),
-                colors   = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = accent.copy(alpha = 0.2f),
-                    selectedLabelColor     = accent,
-                    containerColor         = MaterialTheme.colorScheme.surfaceVariant,
-                    labelColor             = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-                shape    = RoundedCornerShape(50),
-            )
+        tabs.forEach { tab ->
+            val active = tab.feature == activeFeature
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(if (active) tab.soft else Color.Transparent)
+                    .clickable { onSelect(tab.feature) }
+                    .padding(vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Icon(
+                    imageVector        = tab.icon,
+                    contentDescription = tab.label,
+                    tint               = if (active) tab.accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier           = Modifier.size(22.dp),
+                )
+                Text(
+                    text  = tab.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (active) tab.accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

@@ -1,8 +1,8 @@
 package com.smartai.explorer.ui.screens.viewer.tabs
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,18 +22,28 @@ fun SummaryTab(
     var selectedMode  by remember { mutableStateOf(SummaryMode.QUICK) }
     var customPrompt  by remember { mutableStateOf("") }
 
-    Column(modifier = modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-
-        // Mode selector chips
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SummaryMode.entries.forEach { mode ->
-                FilterChip(
+    Column(
+        modifier            = modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // Mode selector — segmented control
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            SummaryMode.entries.forEachIndexed { i, mode ->
+                SegmentedButton(
                     selected = mode == selectedMode,
                     onClick  = { selectedMode = mode },
-                    label    = { Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }) },
-                    modifier = Modifier.height(48.dp),
-                    shape    = RoundedCornerShape(50),
-                )
+                    shape    = SegmentedButtonDefaults.itemShape(index = i, count = SummaryMode.entries.size),
+                    colors   = SegmentedButtonDefaults.colors(
+                        activeContainerColor   = MaterialTheme.colorScheme.primaryContainer,
+                        activeContentColor     = MaterialTheme.colorScheme.onPrimaryContainer,
+                        inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                ) {
+                    Text(
+                        mode.name.lowercase().replaceFirstChar { it.uppercase() },
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
             }
         }
 
@@ -41,33 +51,44 @@ fun SummaryTab(
             OutlinedTextField(
                 value         = customPrompt,
                 onValueChange = { customPrompt = it },
-                label         = { Text("Custom prompt") },
+                label         = { Text("What should the summary focus on?") },
                 modifier      = Modifier.fillMaxWidth(),
-                shape         = RoundedCornerShape(12.dp),
+                shape         = MaterialTheme.shapes.small,
                 maxLines      = 3,
+                textStyle     = MaterialTheme.typography.bodyMedium,
             )
         }
 
         Button(
             onClick  = { onLoad(selectedMode, customPrompt.ifBlank { null }) },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape    = MaterialTheme.shapes.small,
             enabled  = state !is UiState.Loading,
         ) {
-            Text(if (state is UiState.Loading) "Generating…" else "Generate Summary")
+            Text(if (state is UiState.Loading) "Generating…" else "Generate summary")
         }
 
         when (state) {
             is UiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(strokeWidth = 3.dp)
             }
-            is UiState.Success -> Text(
-                text     = state.data.content,
-                style    = MaterialTheme.typography.bodyLarge,
-                color    = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-            )
+            is UiState.Success -> OutlinedCard(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                shape    = MaterialTheme.shapes.medium,
+                colors   = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border   = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            ) {
+                Text(
+                    text     = state.data.content,
+                    style    = MaterialTheme.typography.bodyLarge,
+                    color    = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
+                )
+            }
             is UiState.Error   -> Text(
-                text  = "Error: ${state.message}",
+                text  = state.message,
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium,
             )

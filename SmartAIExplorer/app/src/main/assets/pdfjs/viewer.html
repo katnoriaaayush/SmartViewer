@@ -13,7 +13,7 @@
     }
 
     body {
-      background: #0F1117;
+      background: #E9EBEF;
       font-family: system-ui, sans-serif;
     }
 
@@ -27,13 +27,13 @@
       align-items: center;
       justify-content: center;
       gap: 12px;
-      color: #B0B8D0;
+      color: #606774;
       font-size: 16px;
     }
     #status .spinner {
       width: 36px; height: 36px;
-      border: 3px solid #2A2E3F;
-      border-top-color: #4A90D9;
+      border: 3px solid #D6DAE1;
+      border-top-color: #4F46E5;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
@@ -56,7 +56,8 @@
     .pageContainer {
       position: relative;
       background: #fff;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(16,19,25,0.12), 0 4px 14px rgba(16,19,25,0.08);
       flex-shrink: 0;
     }
 
@@ -80,17 +81,17 @@
       cursor: text;
       transform-origin: 0% 0%;
     }
-    /* Blue highlight on selection */
+    /* Indigo highlight on selection */
     .textLayer ::selection {
-      background: rgba(74, 144, 217, 0.45) !important;
+      background: rgba(79, 70, 229, 0.30) !important;
       color: transparent;
     }
     /* Page number label */
     .pageLabel {
-      font-size: 13px;
-      color: #B0B8D0;
+      font-size: 12px;
+      color: #98A0AD;
       text-align: center;
-      padding: 4px 0;
+      padding: 2px 0;
       align-self: center;
     }
   </style>
@@ -172,7 +173,7 @@ window.loadPDF = async function(base64Data, start, end) {
     await renderRange();
   } catch (err) {
     containerEl.innerHTML =
-      `<p style="color:#ff6b6b;padding:24px;font-size:15px">Failed to load PDF: ${err.message}</p>`;
+      `<p style="color:#DC2626;padding:24px;font-size:15px">Failed to load PDF: ${err.message}</p>`;
     hideStatus();
     console.error('loadPDF error', err);
   }
