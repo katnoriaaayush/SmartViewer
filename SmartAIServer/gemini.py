@@ -114,7 +114,11 @@ async def generate_flashcards(file_path, mime_type, count=10) -> list[dict]:
     started = time.monotonic()
     result = await client().aio.models.generate_content(
         model=MODEL,
-        config=types.GenerateContentConfig(max_output_tokens=4096, temperature=0.2),
+        config=types.GenerateContentConfig(
+            max_output_tokens=4096,
+            temperature=0.2,
+            response_mime_type="application/json",
+        ),
         contents=[types.Content(role="user", parts=[_file_part(file_path, mime_type), _text(prompt)])],
     )
     logger.info("generate_flashcards(count=%d) done in %.2fs", count, time.monotonic() - started)
@@ -136,7 +140,11 @@ async def generate_insights(file_path, mime_type) -> dict:
     started = time.monotonic()
     result = await client().aio.models.generate_content(
         model=MODEL,
-        config=types.GenerateContentConfig(max_output_tokens=4096, temperature=0.2),
+        config=types.GenerateContentConfig(
+            max_output_tokens=4096,
+            temperature=0.2,
+            response_mime_type="application/json",
+        ),
         contents=[types.Content(role="user", parts=[_file_part(file_path, mime_type), _text(prompt)])],
     )
     logger.info("generate_insights done in %.2fs", time.monotonic() - started)
@@ -155,7 +163,11 @@ async def generate_index(file_path, mime_type) -> list[dict]:
     started = time.monotonic()
     result = await client().aio.models.generate_content(
         model=MODEL,
-        config=types.GenerateContentConfig(max_output_tokens=2048, temperature=0.1),
+        config=types.GenerateContentConfig(
+            max_output_tokens=2048,
+            temperature=0.1,
+            response_mime_type="application/json",
+        ),
         contents=[types.Content(role="user", parts=[_file_part(file_path, mime_type), _text(prompt)])],
     )
     logger.info("generate_index done in %.2fs", time.monotonic() - started)
