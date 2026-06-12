@@ -1,10 +1,12 @@
 package com.smartai.explorer.ui.screens.viewer.tabs
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -14,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.smartai.explorer.domain.model.ChatMessage
@@ -24,23 +27,26 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ChatTab(
-    messages:      List<ChatMessage>,
-    streamingText: String,
-    onSend:        (String) -> Unit,
-    modifier:      Modifier = Modifier,
+    messages:       List<ChatMessage>,
+    streamingText:  String,
+    isChatLoading:  Boolean,
+    onSend:         (String) -> Unit,
+    modifier:       Modifier = Modifier,
 ) {
     val listState  = rememberLazyListState()
     val scope      = rememberCoroutineScope()
     var input      by remember { mutableStateOf("") }
-    val isBusy     = streamingText.isNotEmpty()
+    val isBusy     = isChatLoading || streamingText.isNotEmpty()
+    val showTyping = isChatLoading && streamingText.isEmpty()
 
-    LaunchedEffect(messages.size, streamingText) {
-        val target = messages.size + if (streamingText.isNotEmpty()) 1 else 0
+    LaunchedEffect(messages.size, streamingText, isChatLoading) {
+        val extra = if (streamingText.isNotEmpty() || showTyping) 1 else 0
+        val target = messages.size + extra
         if (target > 0) scope.launch { listState.animateScrollToItem(target - 1) }
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        if (messages.isEmpty() && streamingText.isEmpty()) {
+        if (messages.isEmpty() && !isBusy) {
             ChatEmptyState(modifier = Modifier.weight(1f))
         } else {
             LazyColumn(
@@ -55,6 +61,10 @@ fun ChatTab(
                 if (streamingText.isNotEmpty()) {
                     item(key = "streaming") {
                         StreamingBubble(text = streamingText)
+                    }
+                } else if (showTyping) {
+                    item(key = "typing") {
+                        TypingIndicatorBubble()
                     }
                 }
             }
@@ -139,6 +149,52 @@ private fun ChatEmptyState(modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+@Composable
+private fun TypingIndicatorBubble() {
+    Row(
+        modifier              = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Start,
+    ) {
+        Surface(
+            shape    = RoundedCornerShape(18.dp, 18.dp, 18.dp, 6.dp),
+            color    = MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.widthIn(min = 64.dp),
+        ) {
+            Row(
+                modifier              = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment     = Alignment.CenterVertically,
+            ) {
+                repeat(3) { index ->
+                    BouncingDot(delayMs = index * 160)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BouncingDot(delayMs: Int) {
+    val infiniteTransition = rememberInfiniteTransition(label = "dot_bounce_$delayMs")
+    val translateY by infiniteTransition.animateFloat(
+        initialValue   = 0f,
+        targetValue    = -6f,
+        animationSpec  = infiniteRepeatable(
+            animation  = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+            initialStartOffset = StartOffset(delayMs),
+        ),
+        label = "bounce_$delayMs",
+    )
+    Box(
+        modifier = Modifier
+            .size(8.dp)
+            .graphicsLayer { translationY = translateY }
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)),
+    )
 }
 
 @Composable

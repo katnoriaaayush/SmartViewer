@@ -23,6 +23,7 @@ data class ViewerUiState(
     val selectedText:    String?                   = null,
     val chatMessages:    List<ChatMessage>         = emptyList(),
     val streamingText:   String                    = "",
+    val isChatLoading:   Boolean                   = false,
     val summaryState:    UiState<Summary>          = UiState.Idle,
     val flashcardsState: UiState<List<Flashcard>>  = UiState.Idle,
     val insightsState:   UiState<DocumentInsights> = UiState.Idle,
@@ -107,25 +108,25 @@ class ViewerViewModel @Inject constructor(
         val sid   = sessionId  ?: run { AppLog.w(TAG, "sendChatMessage ignored: no sessionId yet"); return }
         chatJob?.cancel()
         AppLog.i(TAG, "sendChatMessage (len=${message.length})")
-        _uiState.update { it.copy(streamingText = "", activeFeature = AiFeature.CHAT) }
+        _uiState.update { it.copy(streamingText = "", isChatLoading = true, activeFeature = AiFeature.CHAT) }
 
         chatJob = viewModelScope.launch {
+            // Save the user bubble immediately so it appears before the server responds.
+            chatRepo.saveMessage(sid, MessageRole.user, message)
+
             var accumulated = ""
             chatRepo.streamChat(docId, message, sid)
                 .onEach { token ->
                     accumulated += token
-                    _uiState.update { it.copy(streamingText = accumulated) }
+                    _uiState.update { it.copy(streamingText = accumulated, isChatLoading = false) }
                 }
                 .onCompletion { err ->
                     if (err == null) {
                         AppLog.i(TAG, "Chat stream complete (${accumulated.length} chars)")
-                        chatRepo.saveMessage(sid, MessageRole.user,  message)
                         chatRepo.saveMessage(sid, MessageRole.model, accumulated)
                     }
-                    _uiState.update { it.copy(streamingText = "") }
+                    _uiState.update { it.copy(streamingText = "", isChatLoading = false) }
                 }
-                // onCompletion already cleared streamingText; persist the error as
-                // a chat bubble so the input is re-enabled and history is preserved.
                 .catch { e ->
                     AppLog.e(TAG, "Chat stream error", e)
                     chatRepo.saveMessage(sid, MessageRole.model, "⚠️ ${e.message ?: "Connection error"}")

@@ -61,9 +61,10 @@ fun AiPanel(
                     ) { feature ->
                         when (feature) {
                             AiFeature.CHAT       -> ChatTab(
-                                messages      = state.chatMessages,
-                                streamingText = state.streamingText,
-                                onSend        = viewModel::sendChatMessage,
+                                messages       = state.chatMessages,
+                                streamingText  = state.streamingText,
+                                isChatLoading  = state.isChatLoading,
+                                onSend         = viewModel::sendChatMessage,
                             )
                             AiFeature.SUMMARY    -> SummaryTab(
                                 state  = state.summaryState,

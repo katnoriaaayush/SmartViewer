@@ -53,6 +53,22 @@ def _parse_json(raw: str) -> dict:
     return obj
 
 
+def _parse_json_value(raw: str):
+    """Parse the first JSON value (object OR array) — returns dict or list."""
+    brace   = raw.find("{")
+    bracket = raw.find("[")
+    if brace == -1 and bracket == -1:
+        raise ValueError("No JSON value in model response")
+    if brace == -1:
+        start = bracket
+    elif bracket == -1:
+        start = brace
+    else:
+        start = min(brace, bracket)
+    val, _ = json.JSONDecoder().raw_decode(raw, start)
+    return val
+
+
 # ── Chat (streaming) ────────────────────────────────────────────────────────────
 
 async def chat_stream(file_path, mime_type, history, user_message):
@@ -122,7 +138,11 @@ async def generate_flashcards(file_path, mime_type, count=10) -> list[dict]:
         contents=[types.Content(role="user", parts=[_file_part(file_path, mime_type), _text(prompt)])],
     )
     logger.info("generate_flashcards(count=%d) done in %.2fs", count, time.monotonic() - started)
-    return _parse_json(result.text or "").get("flashcards", [])
+    parsed = _parse_json_value(result.text or "")
+    # Model may return {"flashcards":[...]} or a bare [...] array
+    if isinstance(parsed, list):
+        return parsed
+    return parsed.get("flashcards", [])
 
 
 # ── Insights ──────────────────────────────────────────────────────────────────────
