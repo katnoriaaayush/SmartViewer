@@ -138,18 +138,24 @@ async def generate_flashcards(file_path, mime_type, count=10) -> list[dict]:
         contents=[types.Content(role="user", parts=[_file_part(file_path, mime_type), _text(prompt)])],
     )
     logger.info("generate_flashcards(count=%d) done in %.2fs", count, time.monotonic() - started)
-    parsed = _parse_json_value(result.text or "")
-    # Model may return {"flashcards":[...]} or a bare [...] array
-    if isinstance(parsed, list):
-        return parsed
-    return parsed.get("flashcards", [])
+    try:
+        parsed = _parse_json_value(result.text or "")
+        # Model may return {"flashcards":[...]} or a bare [...] array
+        if isinstance(parsed, list):
+            return parsed
+        return parsed.get("flashcards", [])
+    except (ValueError, json.JSONDecodeError) as exc:
+        logger.error("generate_flashcards JSON parse failed (%s) — raw: %.200s", exc, result.text)
+        return []
 
 
 # ── Insights ──────────────────────────────────────────────────────────────────────
 
 async def generate_insights(file_path, mime_type) -> dict:
     prompt = (
-        "Analyse this document and return ONLY valid JSON, no markdown:\n"
+        "Analyse this document and return ONLY valid JSON, no markdown.\n"
+        "Hard limits: max 8 keyPoints (≤15 words each), max 15 entities, "
+        "max 5 actionItems (≤12 words each), max 8 topics (≤4 words each).\n"
         "{\n"
         '  "keyPoints":   ["point 1", "point 2"],\n'
         '  "entities":    [{"name": "Name", "type": "PERSON|ORGANIZATION|DATE|LOCATION|OTHER"}],\n'
@@ -161,21 +167,27 @@ async def generate_insights(file_path, mime_type) -> dict:
     result = await client().aio.models.generate_content(
         model=MODEL,
         config=types.GenerateContentConfig(
-            max_output_tokens=4096,
+            max_output_tokens=8192,
             temperature=0.2,
             response_mime_type="application/json",
         ),
         contents=[types.Content(role="user", parts=[_file_part(file_path, mime_type), _text(prompt)])],
     )
     logger.info("generate_insights done in %.2fs", time.monotonic() - started)
-    return _parse_json(result.text or "")
+    try:
+        return _parse_json(result.text or "")
+    except (ValueError, json.JSONDecodeError) as exc:
+        logger.error("generate_insights JSON parse failed (%s) — raw: %.200s", exc, result.text)
+        # Return whatever partial arrays we can salvage; route returns empty lists for missing keys
+        return {}
 
 
 # ── Index ─────────────────────────────────────────────────────────────────────────
 
 async def generate_index(file_path, mime_type) -> list[dict]:
     prompt = (
-        "Extract this document's table of contents / structure. Return ONLY valid JSON:\n"
+        "Extract this document's table of contents / structure. Return ONLY valid JSON.\n"
+        "Hard limits: max 30 sections, summary ≤ 12 words each.\n"
         "{\n"
         '  "sections": [{"title": "Section Title", "page": 1, "summary": "one sentence", "level": 1}]\n'
         "}"
@@ -184,14 +196,18 @@ async def generate_index(file_path, mime_type) -> list[dict]:
     result = await client().aio.models.generate_content(
         model=MODEL,
         config=types.GenerateContentConfig(
-            max_output_tokens=2048,
+            max_output_tokens=4096,
             temperature=0.1,
             response_mime_type="application/json",
         ),
         contents=[types.Content(role="user", parts=[_file_part(file_path, mime_type), _text(prompt)])],
     )
     logger.info("generate_index done in %.2fs", time.monotonic() - started)
-    return _parse_json(result.text or "").get("sections", [])
+    try:
+        return _parse_json(result.text or "").get("sections", [])
+    except (ValueError, json.JSONDecodeError) as exc:
+        logger.error("generate_index JSON parse failed (%s) — raw: %.200s", exc, result.text)
+        return []
 
 
 # ── Explain ───────────────────────────────────────────────────────────────────────
