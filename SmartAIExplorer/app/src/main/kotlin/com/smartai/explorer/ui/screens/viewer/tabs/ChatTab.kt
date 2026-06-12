@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.smartai.explorer.domain.model.ChatMessage
 import com.smartai.explorer.domain.model.MessageRole
+import com.smartai.explorer.ui.components.MarkdownText
 import com.smartai.explorer.ui.components.StreamingBubble
 import com.smartai.explorer.ui.theme.ChatBlueSoft
 import kotlinx.coroutines.launch
@@ -215,13 +216,21 @@ private fun MessageBubble(message: ChatMessage) {
                        else MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier.widthIn(max = 360.dp),
         ) {
-            Text(
-                text     = message.content,
-                style    = MaterialTheme.typography.bodyMedium,
-                color    = if (isUser) MaterialTheme.colorScheme.onPrimary
-                           else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-            )
+            if (isUser) {
+                Text(
+                    text     = message.content,
+                    style    = MaterialTheme.typography.bodyMedium,
+                    color    = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                )
+            } else {
+                MarkdownText(
+                    text     = message.content,
+                    style    = MaterialTheme.typography.bodyMedium,
+                    color    = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                )
+            }
         }
     }
 }

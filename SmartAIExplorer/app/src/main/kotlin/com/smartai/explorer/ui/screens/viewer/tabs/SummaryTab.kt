@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import com.smartai.explorer.domain.model.Summary
 import com.smartai.explorer.domain.model.SummaryMode
 import com.smartai.explorer.domain.model.UiState
+import com.smartai.explorer.ui.components.MarkdownText
 
 @Composable
 fun SummaryTab(
@@ -78,7 +79,7 @@ fun SummaryTab(
                 colors   = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border   = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             ) {
-                Text(
+                MarkdownText(
                     text     = state.data.content,
                     style    = MaterialTheme.typography.bodyLarge,
                     color    = MaterialTheme.colorScheme.onSurface,

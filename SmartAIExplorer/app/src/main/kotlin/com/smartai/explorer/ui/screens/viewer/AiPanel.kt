@@ -27,6 +27,7 @@ import com.smartai.explorer.domain.model.AiFeature
 import com.smartai.explorer.domain.model.ExplainMode
 import com.smartai.explorer.domain.model.ExplainResult
 import com.smartai.explorer.domain.model.UiState
+import com.smartai.explorer.ui.components.MarkdownText
 import com.smartai.explorer.ui.screens.viewer.tabs.*
 import com.smartai.explorer.ui.theme.*
 
@@ -242,7 +243,7 @@ private fun ExplainSheet(
                         }
                     }
                     // Explanation body (scrollable)
-                    Text(
+                    MarkdownText(
                         text     = state.data.explanation,
                         style    = MaterialTheme.typography.bodyLarge,
                         color    = MaterialTheme.colorScheme.onSurface,

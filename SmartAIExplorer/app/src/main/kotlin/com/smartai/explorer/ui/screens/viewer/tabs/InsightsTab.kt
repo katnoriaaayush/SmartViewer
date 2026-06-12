@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.smartai.explorer.domain.model.DocumentInsights
 import com.smartai.explorer.domain.model.UiState
+import com.smartai.explorer.ui.components.MarkdownText
 import com.smartai.explorer.ui.theme.*
 
 @Composable
@@ -126,6 +127,11 @@ private fun SectionHeader(title: String, accent: Color) {
 private fun BulletItem(text: String, accent: Color) {
     Row(modifier = Modifier.padding(start = 16.dp)) {
         Text("•  ", style = MaterialTheme.typography.bodyMedium, color = accent)
-        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+        MarkdownText(
+            text     = text,
+            style    = MaterialTheme.typography.bodyMedium,
+            color    = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
     }
 }

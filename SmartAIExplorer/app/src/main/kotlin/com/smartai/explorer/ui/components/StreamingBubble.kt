@@ -10,12 +10,14 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun StreamingBubble(text: String, modifier: Modifier = Modifier) {
     Surface(
-        shape    = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 6.dp, bottomEnd = 18.dp),
+        shape    = RoundedCornerShape(18.dp, 18.dp, 18.dp, 6.dp),
         color    = MaterialTheme.colorScheme.surfaceVariant,
         modifier = modifier.widthIn(max = 360.dp),
     ) {
-        // Cursor blink is visual-only — just append the block character
-        Text(
+        // Append the blinking cursor to the raw text so the inline parser
+        // sees it as a plain character at the end — markdown tags will still
+        // render correctly while the stream is in flight.
+        MarkdownText(
             text     = "$text▋",
             style    = MaterialTheme.typography.bodyMedium,
             color    = MaterialTheme.colorScheme.onSurface,
