@@ -60,20 +60,22 @@ async def chat_stream(file_path, mime_type, history, user_message):
     Return an async iterator of GenerateContentResponse chunks.
 
     `history` is a list of rows with `role` ('user'|'model') and `content`.
+    Uses the Chats API so the SDK handles history serialisation correctly.
     """
-    contents: list[types.Content] = [
+    history_contents: list[types.Content] = [
         types.Content(role=row["role"], parts=[_text(row["content"])])
         for row in history
     ]
-    contents.append(
-        types.Content(role="user", parts=[_file_part(file_path, mime_type), _text(user_message)])
-    )
 
     logger.info(
         "chat_stream → model=%s history_turns=%d msg_len=%d",
         MODEL, len(history), len(user_message),
     )
-    return await client().aio.models.generate_content_stream(model=MODEL, contents=contents)
+
+    chat = client().aio.chats.create(model=MODEL, history=history_contents)
+    return await chat.send_message_stream(
+        [_file_part(file_path, mime_type), _text(user_message)]
+    )
 
 
 # ── Summary ──────────────────────────────────────────────────────────────────────

@@ -63,6 +63,7 @@ fun SummaryTab(
             is UiState.Success -> Text(
                 text     = state.data.content,
                 style    = MaterialTheme.typography.bodyLarge,
+                color    = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.verticalScroll(rememberScrollState()),
             )
             is UiState.Error   -> Text(

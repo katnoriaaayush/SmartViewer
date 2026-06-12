@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
+import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -74,6 +75,10 @@ fun PdfPanel(
                 .build()
 
             WebView(context).apply {
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
                 settings.apply {
                     javaScriptEnabled  = true
                     allowFileAccess    = false   // assets served via AssetLoader, not file://
