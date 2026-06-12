@@ -99,7 +99,6 @@
 
 <div id="status">
   <div class="spinner"></div>
-  <span id="statusText">Initialising PDF viewer…</span>
 </div>
 
 <div id="viewerContainer"></div>
@@ -126,7 +125,6 @@ const DPR      = window.devicePixelRatio || 1;
 let rendering  = false;
 
 const statusEl    = document.getElementById('status');
-const statusText  = document.getElementById('statusText');
 const containerEl = document.getElementById('viewerContainer');
 
 // ── Android ↔ JS bridge ──────────────────────────────────────────────────────
@@ -162,7 +160,7 @@ window.loadPDF = async function(base64Data, start, end) {
   startPage = Math.max(1, start || 1);
   endPage   = Math.max(startPage, end || start || 1);
 
-  showStatus('Rendering pages…');
+  showStatus();
 
   try {
     // Decode base64 → Uint8Array
@@ -172,10 +170,10 @@ window.loadPDF = async function(base64Data, start, end) {
 
     pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
     await renderRange();
-
-    hideStatus();
   } catch (err) {
-    showStatus('Error loading PDF: ' + err.message);
+    containerEl.innerHTML =
+      `<p style="color:#ff6b6b;padding:24px;font-size:15px">Failed to load PDF: ${err.message}</p>`;
+    hideStatus();
     console.error('loadPDF error', err);
   }
 };
@@ -197,25 +195,44 @@ window.scrollToPage = function(pageNum) {
 async function renderRange() {
   if (rendering) return;
   rendering = true;
-
   containerEl.innerHTML = '';
   const last = Math.min(endPage, pdfDoc.numPages);
 
+  // Pre-insert ordered slot + label pairs so page order is always preserved
+  // even though individual renders complete out of order.
   for (let n = startPage; n <= last; n++) {
-    statusText.textContent = `Rendering page ${n - startPage + 1} of ${last - startPage + 1}…`;
-    const page    = await pdfDoc.getPage(n);
-    const wrapper = await renderPage(page, n);
-    containerEl.appendChild(wrapper);
-
-    // Page label below canvas
-    const label  = document.createElement('div');
+    const slot = document.createElement('div');
+    slot.id = 'slot-' + n;
+    containerEl.appendChild(slot);
+    const label = document.createElement('div');
     label.className = 'pageLabel';
     label.textContent = `Page ${n}`;
     containerEl.appendChild(label);
   }
 
+  let firstReady = false;
+
+  await Promise.all(
+    Array.from({ length: last - startPage + 1 }, (_, i) => startPage + i)
+      .map(async (n) => {
+        try {
+          const page    = await pdfDoc.getPage(n);
+          const wrapper = await renderPage(page, n);
+          document.getElementById('slot-' + n)?.replaceWith(wrapper);
+        } catch (e) {
+          console.warn('Failed to render page', n, e);
+        }
+        // JS is single-threaded: this check is race-free.
+        // Reveal the container the moment any page is ready.
+        if (!firstReady) {
+          firstReady = true;
+          hideStatus();
+        }
+      })
+  );
+
   rendering = false;
-  containerEl.style.display = 'flex';
+  if (!firstReady) hideStatus(); // all pages failed edge-case
 }
 
 async function renderPage(page, pageNum) {
@@ -263,9 +280,8 @@ async function renderPage(page, pageNum) {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function showStatus(msg) {
-  statusText.textContent = msg;
-  statusEl.style.display   = 'flex';
+function showStatus() {
+  statusEl.style.display    = 'flex';
   containerEl.style.display = 'none';
 }
 
