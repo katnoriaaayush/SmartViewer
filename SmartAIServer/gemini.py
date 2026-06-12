@@ -45,12 +45,12 @@ def _text(content: str) -> types.Part:
 
 
 def _parse_json(raw: str) -> dict:
-    """Extract the first JSON object from a model response, tolerating fences."""
+    """Extract the first JSON object from a model response, tolerating fences or trailing text."""
     start = raw.find("{")
-    end = raw.rfind("}")
-    if start == -1 or end == -1:
+    if start == -1:
         raise ValueError("No JSON object in model response")
-    return json.loads(raw[start : end + 1])
+    obj, _ = json.JSONDecoder().raw_decode(raw, start)
+    return obj
 
 
 # ── Chat (streaming) ────────────────────────────────────────────────────────────
